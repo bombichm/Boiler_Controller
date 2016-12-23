@@ -66,12 +66,37 @@ const byte low = 3;
 const byte medium = 4;
 const byte high = 5;
 
+//###################### Ethernet ######################//
+#include <SPI.h>
+#include <Ethernet.h>
+
+// Enter a MAC address and IP address for your controller below.
+// The IP address will be dependent on your local network:
+byte mac[] = {
+  0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED
+};
+
+IPAddress ip(192, 168, 1, 177);
+
+// Initialize the Ethernet server library
+// with the IP address and port you want to use
+// (port 80 is default for HTTP):
+EthernetServer server(80);
+
 void setup()
 {
   Serial.begin(9600);
   Wire.begin();
   boilerCircSetting(assert);
-//  delay(1000);                                                      //Wait one second to avoid power fluctuations
+
+//###################### Ethernet ######################//
+// start the Ethernet connection and the server:
+  Ethernet.begin(mac, ip);
+  server.begin();
+  Serial.print("server is at ");
+  Serial.println(Ethernet.localIP());
+  
+//###################### Sensors ######################//
   sensors.begin();                                                  // Start up the library
                                                                     // set the resolution to 10 bit
   sensors.setResolution(TankTop, 10);
@@ -85,7 +110,8 @@ void setup()
   sensors.setResolution(DHW, 10);
   
   sensors.requestTemperatures();                                    //Get baseline temps
-  
+
+//###################### LCD ######################//
   lcd.begin(16, 2);
   lcd.print("BOILER SYSTEM");
   lcd.setCursor(0, 1);
@@ -97,7 +123,8 @@ void setup()
     lcd.scrollDisplayLeft();
     delay(187);// scroll the message to the left
   }
-  
+
+//###################### Baseline Temps ######################//
   //Calculate baseline temperatures
   
   TankTopTempFbase = ((sensors.getTempC(TankTop)* 1.8) + 32.0);          //Get Top of Tank #2 temp in F
@@ -116,6 +143,8 @@ void setup()
 void loop()
 {
   Serial.println("Loop Started");
+
+//###################### Calculate Temps ######################//
   
   TankTopTempF = ((sensors.getTempC(TankTop)* 1.8) + 32.0);    //Get Top of Tank #2 temp in F
   MidTankOneTempF = ((sensors.getTempC(MidTankOne)* 1.8) + 32.0);    //Get Mid Tank #1 temp in F
@@ -127,7 +156,63 @@ void loop()
   //HouseTempF = ((sensors.getTempC(House)* 1.8) + 32.0);              //Get House temp in F
   DHWTempF = ((sensors.getTempC(DHW)* 1.8) + 32.0);                  //Get DHW temp in F
   
+//###################### Ethernet ######################//
 
+// listen for incoming clients
+  EthernetClient client = server.available();
+  if (client) {
+    Serial.println("new client");
+    // an http request ends with a blank line
+    boolean currentLineIsBlank = true;
+    while (client.connected()) {
+      if (client.available()) {
+        char c = client.read();
+        Serial.write(c);
+        // if you've gotten to the end of the line (received a newline
+        // character) and the line is blank, the http request has ended,
+        // so you can send a reply
+        if (c == '\n' && currentLineIsBlank) {
+          // send a standard http response header
+          client.println("HTTP/1.1 200 OK");
+          client.println("Content-Type: text/html");
+          client.println("Connection: close");  // the connection will be closed after completion of the response
+//          client.println("Refresh: 5");  // refresh the page automatically every 5 sec
+          client.println();
+          client.println("<!DOCTYPE HTML>");
+          client.println("<html>");
+          // output the value of each temp sensor
+          client.print("TankTopTempF = ");
+          client.println(TankTopTempF);
+          client.print("MidTankOneTempF = ");
+          client.println(MidTankOneTempF);
+          client.print("TankReturnTempF = ");
+          client.println(TankReturnTempF);
+          client.print("BoilerTempF = ");
+          client.println(BoilerTempF);
+          client.print("OutdoorTempF = ");
+          client.println(OutdoorTempF);
+          client.print("BoilerRoomTempF = ");
+          client.println(BoilerRoomTempF);
+          client.println("<br />");
+          client.println("</html>");
+          break;
+        }
+        if (c == '\n') {
+          // you're starting a new line
+          currentLineIsBlank = true;
+        } else if (c != '\r') {
+          // you've gotten a character on the current line
+          currentLineIsBlank = false;
+        }
+      }
+    }
+    // give the web browser time to receive the data
+    delay(1);
+    // close the connection:
+    client.stop();
+    Serial.println("client disconnected");
+  }
+  
   ////////////////////////////////////////////////////////////////////////////////////////////////////////
 
  //Serial Port Printouts
