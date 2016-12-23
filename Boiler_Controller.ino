@@ -11,9 +11,9 @@
 #include "Wire.h"
 
 //******************** I2C ********************
-int byteSent=0;
-int boilerCirc=0x3; //Boiler Circ Pump
-int furnaceCirc=0x4; //Furnace Circ Pump
+
+const int boilerCirc=0x3; //Boiler Circ Pump
+const int furnaceCirc=0x4; //Furnace Circ Pump
 
 //******************** LCD ********************
 // LCD Define rs, e, d4, d5, d6, d7
@@ -38,18 +38,6 @@ DeviceAddress BoilerRoom = { 0x28, 0xD9, 0x0A, 0x48, 0x06, 0x00, 0x00, 0xDC };  
 DeviceAddress House = { 0x28, 0x85, 0x9E, 0x46, 0x06, 0x00, 0x00, 0x32 };         //Temp inside the house
 DeviceAddress DHW = { 0x28, 0x33, 0x14, 0x48, 0x06, 0x00, 0x00, 0xE4 };           //Temp of the DHW tank
 
-//Define relay pins
-
-//const int AssertRelay = 2;                                        //This relay asserts control of the boiler circ pump
-//const int RelayA = 10;                                            //A off + B off = HIGH; A off + B on = Medium; 
-//const int RelayB = 11;                                            //A on + B on = LOW; A on + B on = OFF
-//const int DHWcirc = 12;               
-
-//Define LED pins
-
-//const int houseCallLED = 13;          // This LED will indicate when the house is calling for heat--that circ pump is not
-                                      // controlled by this system.
-
 //Define variable float values (contain decimel points)
 
 float TankTopTempFbase;
@@ -72,15 +60,20 @@ float BoilerRoomTempF;
 float HouseTempF;
 float DHWTempF;
 
-int DHWcircON;
-
+const byte assert = 1;
+const byte off = 2;
+const byte low = 3;
+const byte medium = 4;
+const byte high = 5;
 
 void setup()
 {
   Serial.begin(9600);
-  delay(1000);                                                      //Wait one second to avoid power fluctuations
+  Wire.begin();
+  boilerCircSetting(assert);
+//  delay(1000);                                                      //Wait one second to avoid power fluctuations
   sensors.begin();                                                  // Start up the library
-                                                    // set the resolution to 10 bit
+                                                                    // set the resolution to 10 bit
   sensors.setResolution(TankTop, 10);
   sensors.setResolution(MidTankOne, 10);
   sensors.setResolution(MidTankTwo, 10);
@@ -92,18 +85,19 @@ void setup()
   sensors.setResolution(DHW, 10);
   
   sensors.requestTemperatures();                                    //Get baseline temps
+  
   lcd.begin(16, 2);
   lcd.print("BOILER SYSTEM");
   lcd.setCursor(0, 1);
   lcd.print("CONTROLLER");
-  delay(1000);  //Delay allows sensors to finish their job
-  Serial.println ("LCD Printed");
-  for (int positionCounter = 0; positionCounter < 17; positionCounter++) 
+  delay(1000);
+  
+  for (int positionCounter = 0; positionCounter < 17; positionCounter+=2) 
   {
     lcd.scrollDisplayLeft();
-    delay(200);// scroll the message to the left
+    delay(187);// scroll the message to the left
   }
-  Serial.println ("LCD scrolled");
+  
   //Calculate baseline temperatures
   
   TankTopTempFbase = ((sensors.getTempC(TankTop)* 1.8) + 32.0);          //Get Top of Tank #2 temp in F
@@ -116,25 +110,13 @@ void setup()
   //HouseTempFbase = ((sensors.getTempC(House)* 1.8) + 32.0);              //Get House temp in F
   DHWTempFbase = ((sensors.getTempC(DHW)* 1.8) + 32.0);                  //Get DHW temp in F
 
-  Serial.println ("Baseline Temps Obtained");
   
-// pinMode(AssertRelay,OUTPUT);
-// pinMode(RelayA,OUTPUT);
-// pinMode(RelayB,OUTPUT);
-// pinMode(DHWcirc,OUTPUT);
-// pinMode(houseCallLED,OUTPUT);
-
- boilerCircAssertOn();           //The controller has asserted control of the boiler circ pump
- Serial.println("Setup Complete");
 }
 
 void loop()
 {
   Serial.println("Loop Started");
-  sensors.requestTemperatures();                                     //This is placed here because the rest of the program will
-  delay(2000);                                                       //run long enough to give the sensors time to return results
   
-
   TankTopTempF = ((sensors.getTempC(TankTop)* 1.8) + 32.0);    //Get Top of Tank #2 temp in F
   MidTankOneTempF = ((sensors.getTempC(MidTankOne)* 1.8) + 32.0);    //Get Mid Tank #1 temp in F
   MidTankTwoTempF = ((sensors.getTempC(MidTankTwo)* 1.8) + 32.0);    //Get Mid Tank #2 temp in F
@@ -253,32 +235,32 @@ else
   
   if (BoilerTempF >= 195.0)                     
   {                                             //This function runs the boiler circ pump on HIGH regardless                                                         
-      boilerCircHigh();                           //of other temps when the boiler is over 195 degrees                                                          
+      boilerCircSetting(high);         //of other temps when the boiler is over 195 degrees                                                          
   }  
   
   else if (TankReturnTempF <= 130.0 && BoilerTempF >= 168.0 && BoilerTempF <= 173.99999)   
   {                                             //This function runs the boiler circ pump on LOW when the                                                                   
-      boilerCircLow();                            //boiler is above 168 degrees                                
+      boilerCircSetting(low);         //boiler is above 168 degrees                                
   }                                           
                                                 
  else if (TankReturnTempF <= 130.0 && BoilerTempF >= 174.0 && BoilerTempF <= 179.999999)   
   {                                             //This function runs the boiler circ pump on MEDIUM when the                                                                   
-      boilerCircMed();                         //boiler is between 174-180 degrees                                
+      boilerCircSetting(medium);         //boiler is between 174-180 degrees                                
   }                                                                             
     
  else if (TankReturnTempF <= 130.0 && BoilerTempF >= 180.0)   
   {                                             //This function runs the boiler circ pump on HIGH when the                                                                   
-      boilerCircHigh();                           //boiler is above 180 degrees and the tank return is less than 130                               
+      boilerCircSetting(high);         //boiler is above 180 degrees and the tank return is less than 130                               
   } 
   
   else if (TankReturnTempF >= 130.0 && BoilerTempF >= 174.0 && ((BoilerTempF - TankTopTempF) >= 2.0))  
   {                                             //This function runs the boiler circ pump on LOW when the tank                                                                    
-      boilerCircLow();                            //return is over 130 degrees, and the Boiler Temp is at least 2                              
+      boilerCircSetting(low);         //return is over 130 degrees, and the Boiler Temp is at least 2                              
   }                                             //degrees warmer than the Top of the Tank
   
   else 
   {                                             //This function shuts the circ pump off if the above parameters                           
-      boilerCircAssertOn();                           //are not met
+      boilerCircSetting(off);         //are not met
   }
            
 ///// Conditional test for activating the DHW circulation pump  
@@ -304,7 +286,8 @@ else
   lcd.setCursor(0, 1);          //New line of the LCD display
   lcd.print("Tank Middle ");
   lcd.print((MidTankOneTempF + MidTankTwoTempF) / 2);
-    delay(3000);
+  sensors.requestTemperatures();                                     //This is placed here because the rest of the program will
+  delay(2000);                                                       //run long enough to give the sensors time to return resultsdelay(2000);
     
   lcd.clear();
   lcd.setCursor(0, 0);          //New line of the LCD display
@@ -314,22 +297,22 @@ else
   lcd.setCursor(0, 1);          //New line of the LCD display
   lcd.print("Tank Return ");
   lcd.print(TankReturnTempF);
-    delay(3000);
+    delay(2000);
 
-  lcd.clear();
-  lcd.setCursor(0, 0);          //New line of the LCD display
-  lcd.print("Boiler Room  ");
-  lcd.print(BoilerRoomTempF);
-    
-  lcd.setCursor(0, 1);          //New line of the LCD display
-  lcd.print("Outdoor      ");
-  lcd.print(OutdoorTempF);
-    delay(3000);
-//  
-  lcd.clear();  
-  lcd.setCursor(0, 0);          //New line of the LCD display (position, line)
-  lcd.print("DHW         ");  //Prints Tank Top Temperature on LCD
-  lcd.print(DHWTempF);
+//  lcd.clear();
+//  lcd.setCursor(0, 0);          //New line of the LCD display
+//  lcd.print("Boiler Room  ");
+//  lcd.print(BoilerRoomTempF);
+//    
+//  lcd.setCursor(0, 1);          //New line of the LCD display
+//  lcd.print("Outdoor      ");
+//  lcd.print(OutdoorTempF);
+//    delay(3000);
+////  
+//  lcd.clear();  
+//  lcd.setCursor(0, 0);          //New line of the LCD display (position, line)
+//  lcd.print("DHW         ");  //Prints Tank Top Temperature on LCD
+//  lcd.print(DHWTempF);
 //     
 //  lcd.setCursor(0, 1);          //New line of the LCD display
 //  lcd.print("House Temp  ");
@@ -339,65 +322,17 @@ else
     
 }
 
-void boilerCircAssertOff()
+void boilerCircSetting(byte data)
 {
   Wire.beginTransmission(boilerCirc);
-  Wire.write(1);
+  Wire.write(data);
   Wire.endTransmission();
 }
 
-void boilerCircAssertOn()
-{
-  Wire.beginTransmission(boilerCirc);
-  Wire.write(2);
-  Wire.endTransmission();
-}
-
-void boilerCircLow()
-{
-  Wire.beginTransmission(boilerCirc);
-  Wire.write(3);
-  Wire.endTransmission();
-}
-
-void boilerCircMed()
-{
-  Wire.beginTransmission(boilerCirc);
-  Wire.write(4);
-  Wire.endTransmission();
-}
-
-void boilerCircHigh()
-{
-  Wire.beginTransmission(boilerCirc);
-  Wire.write(5);
-  Wire.endTransmission();
-}
-
-void furnaceCircOff()
+void furnaceCircSetting(byte data)
 {
   Wire.beginTransmission(furnaceCirc);
-  Wire.write(2);
-  Wire.endTransmission();
-}
-void furnaceCircLow()
-{
-  Wire.beginTransmission(furnaceCirc);
-  Wire.write(3);
-  Wire.endTransmission();
-}
-
-void furnaceCircMed()
-{
-  Wire.beginTransmission(furnaceCirc);
-  Wire.write(4);
-  Wire.endTransmission();
-}
-
-void furnaceCircHigh()
-{
-  Wire.beginTransmission(furnaceCirc);
-  Wire.write(5);
+  Wire.write(data);
   Wire.endTransmission();
 }
 
