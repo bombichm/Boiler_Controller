@@ -8,6 +8,7 @@
 #include <OneWire.h>
 #include <DallasTemperature.h>
 #include <LiquidCrystal.h>
+#include <avr/wdt.h>
 #include "Wire.h"
 
 //******************** I2C ********************
@@ -87,6 +88,8 @@ void setup()
 {
   Serial.begin(9600);
   Wire.begin();
+  wdt_enable(WDTO_8S);                                            //8 second watchdog timer
+  
   boilerCircSetting(assert);
 
 //###################### Ethernet ######################//
@@ -98,7 +101,7 @@ void setup()
   
 //###################### Sensors ######################//
   sensors.begin();                                                  // Start up the library
-  byte bitRes = 9;                                                                 // set the resolution to 10 bit
+ byte bitRes = 9;                                                                 // set the resolution 9-12 bit; 9 bit, 65 ms per chip; 12 bit, 750 ms per chip
   sensors.setResolution(TankTop, bitRes);
   sensors.setResolution(MidTankOne, bitRes);
 //  sensors.setResolution(MidTankTwo, bitRes);
@@ -130,6 +133,7 @@ byte pumpSetting;
 
 void loop()
 {
+  wdt_reset();
   float maxBoilerTempF;
   if (BoilerTempF > maxBoilerTempF)
   {
@@ -318,7 +322,7 @@ void getBoilerBaseTempsF()
 void getBoilerTempsF()
 {
   sensors.requestTemperatures();                                     
-  delay(2250);                                  //750 ms per device
+//  delay(2250);                                  //750 ms per device
   
   TankTopTempF = sensors.getTempF(TankTop);    //Get Top of Tank #2 temp in F
   MidTankOneTempF = sensors.getTempF(MidTankOne);    //Get Mid Tank #1 temp in F
