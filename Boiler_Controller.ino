@@ -76,7 +76,7 @@ byte mac[] = {
   0x00, 0xAA, 0xBB, 0xCC, 0xDE, 0x02
 };
 
-IPAddress ip(192, 168, 0, 24);
+IPAddress ip(192, 168, 1, 126);
 
 // Initialize the Ethernet server library
 // with the IP address and port you want to use
@@ -98,7 +98,7 @@ void setup()
   
 //###################### Sensors ######################//
   sensors.begin();                                                  // Start up the library
-  byte bitRes = 12;                                                                 // set the resolution to 10 bit
+  byte bitRes = 9;                                                                 // set the resolution to 10 bit
   sensors.setResolution(TankTop, bitRes);
   sensors.setResolution(MidTankOne, bitRes);
 //  sensors.setResolution(MidTankTwo, bitRes);
@@ -126,9 +126,17 @@ void setup()
  
 }
 
+byte pumpSetting;
+
 void loop()
 {
-   
+  float maxBoilerTempF;
+  if (BoilerTempF > maxBoilerTempF)
+  {
+    maxBoilerTempF = BoilerTempF;
+  }
+  Serial.println (pumpSetting);
+  
   getBoilerTempsF();
   
 //  spuriousTest();
@@ -161,25 +169,41 @@ void loop()
           client.println();
           client.println("<!DOCTYPE HTML>");
           client.println("<html>");
-          client.println("<p style=""font-size:20px"">");
+          client.println("<p style=""font-size:40px"">");
           // output the value of each temp sensor
-          client.print("TankTopTempF = ");
-          client.println(TankTopTempF);
-          client.println("<br />");
-          client.print("MidTankOneTempF = ");
-          client.println(MidTankOneTempF);
-          client.println("<br />");
-          client.print("TankReturnTempF = ");
-          client.println(TankReturnTempF);
-          client.println("<br />");
+//          client.print("TankTopTempF = ");
+//          client.println(TankTopTempF);
+//          client.println("<br />");
+//          client.print("MidTankOneTempF = ");
+//          client.println(MidTankOneTempF);
+//          client.println("<br />");
+//          client.print("TankReturnTempF = ");
+//          client.println(TankReturnTempF);
+//          client.println("<br />");
           client.print("BoilerTempF = ");
           client.println(BoilerTempF);
           client.println("<br />");
-          client.print("OutdoorTempF = ");
-          client.println(OutdoorTempF);
+          client.print("MaxBoilerTempF = ");
+          client.println(maxBoilerTempF);
           client.println("<br />");
-          client.print("BoilerRoomTempF = ");
-          client.println(BoilerRoomTempF);
+          client.println("Pump Setting =  ");
+          client.println(pumpSetting);
+          client.println("<br />");
+          client.println("assert = 1");
+          client.println("<br />");
+          client.println("off = 2");
+          client.println("<br />");
+          client.println("low = 3");
+          client.println("<br />");
+          client.println("medium = 4");
+          client.println("<br />");
+          client.println("high = 5");
+          client.println("<br />");
+//          client.print("OutdoorTempF = ");
+//          client.println(OutdoorTempF);
+//          client.println("<br />");
+//          client.print("BoilerRoomTempF = ");
+//          client.println(BoilerRoomTempF);
           client.println("<br />");
 
           client.print("Time Since Start Up (minutes) = ");
@@ -232,7 +256,7 @@ void loop()
       boilerCircSetting(medium);         //boiler is between 174-180 degrees                                
   }                                                                             
     
- else if (TankReturnTempF <= 130.0 && BoilerTempF >= 180.0)   
+ else if (TankReturnTempF <= 130.0 && BoilerTempF >= 179.0)   
   {                                             //This function runs the boiler circ pump on HIGH when the                                                                   
       boilerCircSetting(high);         //boiler is above 180 degrees and the tank return is less than 130                               
   } 
@@ -266,8 +290,10 @@ void boilerCircSetting(byte data)
 {
   Wire.beginTransmission(boilerCirc);
   Wire.write(data);
+  Serial.println(data);
   Wire.endTransmission();
-}
+  pumpSetting = data;
+  }
 
 void furnaceCircSetting(byte data)
 {
@@ -344,29 +370,31 @@ void lcdPrintTemps()
 /////LCD Printouts
 
  
-  lcd.setCursor(0, 0);          //New line of the LCD display (position, line)
-  lcd.print("Top ");  //Prints Tank Top Temperature on LCD
-  lcd.print((int)TankTopTempF);
-  lcd.print("  ");
+//  lcd.setCursor(0, 0);          //New line of the LCD display (position, line)
+//  lcd.print("Top ");  //Prints Tank Top Temperature on LCD
+//  lcd.print((int)TankTopTempF);
+//  lcd.print("  ");
      
-  lcd.setCursor(8, 0);          //New line of the LCD display
-  lcd.print(" Mid ");
-  lcd.print((int)MidTankOneTempF);
-  lcd.print("  ");                                                     
+//  lcd.setCursor(8, 0);          //New line of the LCD display
+//  lcd.print(" Mid ");
+//  lcd.print((int)MidTankOneTempF);
+//  lcd.print("  ");                                                     
     
-//  lcd.setCursor(0, 1);          //New line of the LCD display
-//  lcd.print("Ret ");
-//  lcd.print((int)TankReturnTempF);
+  lcd.setCursor(0, 1);          //New line of the LCD display
+  lcd.print("Return ");
+  lcd.setCursor(8, 1);
+  lcd.print((int)TankReturnTempF);
   
-  lcd.setCursor(8, 1);          //New line of the LCD display
-  lcd.print(" Blr ");
+  lcd.setCursor(0, 0);          //New line of the LCD display
+  lcd.print("Boiler ");
+  lcd.setCursor(8, 0);
   lcd.print((int)BoilerTempF);
   lcd.print("  ");
 
-  lcd.setCursor(0, 1);          //New line of the LCD display
-  lcd.print("Brm ");
-  lcd.print((int)BoilerRoomTempF);
-  lcd.print("  "); 
+//  lcd.setCursor(0, 1);          //New line of the LCD display
+//  lcd.print("Brm ");
+//  lcd.print((int)BoilerRoomTempF);
+//  lcd.print("  "); 
 //  lcd.setCursor(0, 1);          //New line of the LCD display
 //  lcd.print("Outdoor      ");
 //  lcd.print((int)OutdoorTempF);
