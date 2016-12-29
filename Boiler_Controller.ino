@@ -139,8 +139,9 @@ void loop()
   {
     maxBoilerTempF = BoilerTempF;
   }
+  Serial.print ("Pump Setting is ");
   Serial.println (pumpSetting);
-  
+ 
   getBoilerTempsF();
   
 //  spuriousTest();
@@ -294,7 +295,6 @@ void boilerCircSetting(byte data)
 {
   Wire.beginTransmission(boilerCirc);
   Wire.write(data);
-  Serial.println(data);
   Wire.endTransmission();
   pumpSetting = data;
   }
@@ -310,29 +310,33 @@ void getBoilerBaseTempsF()
 {
   TankTopTempFbase = sensors.getTempF(TankTop);          //Get Top of Tank #2 temp in F
   MidTankOneTempFbase = sensors.getTempF(MidTankOne);    //Get Mid Tank #1 temp in F
-//  MidTankTwoTempFbase = sensors.getTempF(MidTankTwo);    //Get Mid Tank #2 temp in F
+  MidTankTwoTempFbase = sensors.getTempF(MidTankTwo);    //Get Mid Tank #2 temp in F
   TankReturnTempFbase = sensors.getTempF(TankReturn);    //Get Tank Return temp in F
   BoilerTempFbase = sensors.getTempF(Boiler);            //Get Boiler temp in F
-//  OutdoorTempFbase = sensors.getTempF(Outdoor);          //Get Outdoor temp in F
-//  BoilerRoomTempFbase = sensors.getTempF(BoilerRoom);    //Get Boiler room temp in F
-  //HouseTempFbase = sensors.getTempF(House);              //Get House temp in F
-//  DHWTempFbase = sensors.getTempF(DHW);                  //Get DHW temp in F
+  OutdoorTempFbase = sensors.getTempF(Outdoor);          //Get Outdoor temp in F
+  BoilerRoomTempFbase = sensors.getTempF(BoilerRoom);    //Get Boiler room temp in F
+  HouseTempFbase = sensors.getTempF(House);              //Get House temp in F
+  DHWTempFbase = sensors.getTempF(DHW);                  //Get DHW temp in F
 }
 
 void getBoilerTempsF()
 {
-  sensors.requestTemperatures();                                     
+  long getTempTime = millis();
+  sensors.requestTemperatures();
+  Serial.print ("Get Temperatures delay = ");
+  Serial.print (millis()-getTempTime);
+  Serial.println(" ms");                                     
 //  delay(2250);                                  //750 ms per device
   
   TankTopTempF = sensors.getTempF(TankTop);    //Get Top of Tank #2 temp in F
   MidTankOneTempF = sensors.getTempF(MidTankOne);    //Get Mid Tank #1 temp in F
-//  MidTankTwoTempF = sensors.getTempF(MidTankTwo);    //Get Mid Tank #2 temp in F
+  MidTankTwoTempF = sensors.getTempF(MidTankTwo);    //Get Mid Tank #2 temp in F
   TankReturnTempF = sensors.getTempF(TankReturn);    //Get Tank Return temp in F
   BoilerTempF = sensors.getTempF(Boiler);            //Get Boiler temp in F
-//  OutdoorTempF = sensors.getTempF(Outdoor);          //Get Outdoor temp in F
+  OutdoorTempF = sensors.getTempF(Outdoor);          //Get Outdoor temp in F
   BoilerRoomTempF = sensors.getTempF(BoilerRoom);    //Get Boiler room temp in F
-  //HouseTempF = sensors.getTempF(House);              //Get House temp in F
-//  DHWTempF = sensors.getTempF(DHW);                  //Get DHW temp in F
+  HouseTempF = sensors.getTempF(House);              //Get House temp in F
+  DHWTempF = sensors.getTempF(DHW);                  //Get DHW temp in F
 }
 
 //Serial Port Printouts
