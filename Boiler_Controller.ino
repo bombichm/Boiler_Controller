@@ -101,7 +101,7 @@ void setup()
   
 //###################### Sensors ######################//
   sensors.begin();                                                  // Start up the library
- byte bitRes = 9;                                                                 // set the resolution 9-12 bit; 9 bit, 65 ms per chip; 12 bit, 750 ms per chip
+ byte bitRes = 9;                                                   // set the resolution 9-12 bit; 9 bit, 65 ms per chip; 12 bit, 750 ms per chip
   sensors.setResolution(TankTop, bitRes);
   sensors.setResolution(MidTankOne, bitRes);
 //  sensors.setResolution(MidTankTwo, bitRes);
@@ -212,7 +212,7 @@ void loop()
           client.println("<br />");
 
           client.print("Time Since Start Up (minutes) = ");
-          int timer = millis() /60000;
+          unsigned long timer = millis() /60000;
           client.println(timer);
           client.println("<br />");
           client.println("</p>");
@@ -291,11 +291,27 @@ void loop()
 
 }
 
+byte timer;
 void boilerCircSetting(byte data)
 {
-  Wire.beginTransmission(boilerCirc);
-  Wire.write(data);
-  Wire.endTransmission();
+  //if statement to see how long ago pump changed state
+  //variable to store last time state was changed
+  
+  if (timer >= 60)
+    {
+    Wire.beginTransmission(boilerCirc);
+    Wire.write(data);
+    Wire.endTransmission();
+    timer = 0;
+    }
+  else 
+    {
+      timer++;
+      Serial.print ("timer = ");
+      Serial.println(timer);
+      lcd.setCursor(14, 0);          //New line of the LCD display
+      lcd.print(timer);
+    }
   pumpSetting = data;
   }
 
