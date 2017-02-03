@@ -61,7 +61,7 @@ float BoilerRoomTempF;
 float HouseTempF;
 float DHWTempF;
 
-const byte assert = 1;
+const byte notassert = 1;
 const byte off = 2;
 const byte low = 3;
 const byte medium = 4;
@@ -90,7 +90,10 @@ void setup()
   Wire.begin();
   wdt_enable(WDTO_8S);                                            //8 second watchdog timer
   
-  boilerCircSetting(assert);
+  Wire.beginTransmission(boilerCirc);
+  Wire.write(2);
+  Wire.endTransmission();
+  Serial.println("Assert on, pump off");
 
 //###################### Ethernet ######################//
 // start the Ethernet connection and the server:
@@ -130,15 +133,19 @@ void setup()
 }
 
 byte pumpSetting;
+float maxBoilerTempF;
 
 void loop()
 {
   wdt_reset();
-  float maxBoilerTempF;
+  
   if (BoilerTempF > maxBoilerTempF)
   {
     maxBoilerTempF = BoilerTempF;
   }
+
+
+ 
   Serial.print ("Pump Setting is ");
   Serial.println (pumpSetting);
  
@@ -170,7 +177,7 @@ void loop()
           client.println("HTTP/1.1 200 OK");
           client.println("Content-Type: text/html");
           client.println("Connection: close");  // the connection will be closed after completion of the response
-          client.println("Refresh: 20");  // refresh the page automatically every 20 sec
+          client.println("Refresh: 5");  // refresh the page automatically every 5 sec
           client.println();
           client.println("<!DOCTYPE HTML>");
           client.println("<html>");
@@ -238,12 +245,6 @@ void loop()
   ////////////////////////////////////////////////////////////////////////////////////////////////////////
 
  
-                                                                     
-////////////////////////////////////////////////////////////////////////////////////////////////////////
-
- 
-////////////////////////////////////////////////////////////////////////////////////////////////////////
-
 ///// Conditional tests for setting the boiler circulation pump speed
   
   if (BoilerTempF >= 195.0)                     
@@ -270,6 +271,11 @@ void loop()
   {                                             //This function runs the boiler circ pump on LOW when the tank                                                                    
       boilerCircSetting(low);         //return is over 130 degrees, and the Boiler Temp is at least 2                              
   }                                             //degrees warmer than the Top of the Tank
+
+  else if (BoilerTempF == -196.60)
+  {                                             //This function shuts the circ pump off if the above parameters                           
+      boilerCircSetting(notassert);         //are not met
+  }
   
   else 
   {                                             //This function shuts the circ pump off if the above parameters                           
@@ -297,7 +303,7 @@ void boilerCircSetting(byte data)
   //if statement to see how long ago pump changed state
   //variable to store last time state was changed
   
-  if (timer >= 60)
+  if (timer >= 30)
     {
     Wire.beginTransmission(boilerCirc);
     Wire.write(data);
