@@ -10,6 +10,7 @@
 #include <LiquidCrystal.h>
 #include <avr/wdt.h>
 #include "Wire.h"
+#define LCD 0
 
 //******************** I2C ********************
 
@@ -86,22 +87,19 @@ EthernetServer server(80);
 
 void setup()
 {
-  Serial.begin(9600);
-  Wire.begin();
   wdt_enable(WDTO_8S);                                            //8 second watchdog timer
   
+  Wire.begin();
   Wire.beginTransmission(boilerCirc);
   Wire.write(2);
   Wire.endTransmission();
-  Serial.println("Assert on, pump off");
+  
 
 //###################### Ethernet ######################//
 // start the Ethernet connection and the server:
   Ethernet.begin(mac, ip);
   server.begin();
-  Serial.print("server is at ");
-  Serial.println(Ethernet.localIP());
-  
+    
 //###################### Sensors ######################//
   sensors.begin();                                                  // Start up the library
  byte bitRes = 9;                                                   // set the resolution 9-12 bit; 9 bit, 65 ms per chip; 12 bit, 750 ms per chip
@@ -118,6 +116,12 @@ void setup()
   sensors.requestTemperatures();                                    //Get baseline temps
 
 //###################### LCD ######################//
+ #if DEBUG == 1
+  Serial.begin(9600);
+  Serial.println("Assert on, pump off");
+  Serial.print("server is at ");
+  Serial.println(Ethernet.localIP());
+ 
   lcd.begin(16, 2);
   lcd.setCursor(0, 0);
   lcd.print("BOILER SYSTEM");
@@ -125,6 +129,7 @@ void setup()
   lcd.print("CONTROLLER");
   delay(1000);
   lcd.clear(); 
+ #endif
 
 //###################### Baseline Temps ######################//
   
@@ -153,10 +158,12 @@ void loop()
   
 //  spuriousTest();
 
-  serialPrintTemps();
   
+
+#if DEBUG == 1
   lcdPrintTemps();
-  
+  serialPrintTemps();
+#endif
 //###################### Ethernet ######################//
 
 // listen for incoming clients
