@@ -143,14 +143,13 @@ float maxBoilerTempF;
 void loop()
 {
   wdt_reset();
-  
+
+  //MAX Boiler Temp
   if (BoilerTempF > maxBoilerTempF)
   {
     maxBoilerTempF = BoilerTempF;
   }
 
-
- 
   Serial.print ("Pump Setting is ");
   Serial.println (pumpSetting);
  
@@ -184,7 +183,7 @@ void loop()
           client.println("HTTP/1.1 200 OK");
           client.println("Content-Type: text/html");
           client.println("Connection: close");  // the connection will be closed after completion of the response
-          client.println("Refresh: 5");  // refresh the page automatically every 5 sec
+          client.println("Refresh: 10");  // refresh the page automatically every 10 sec
           client.println();
           client.println("<!DOCTYPE HTML>");
           client.println("<html>");
@@ -196,38 +195,44 @@ void loop()
 //          client.print("MidTankOneTempF = ");
 //          client.println(MidTankOneTempF);
 //          client.println("<br />");
-//          client.print("TankReturnTempF = ");
-//          client.println(TankReturnTempF);
-//          client.println("<br />");
           client.print("BoilerTempF = ");
           client.println(BoilerTempF);
           client.println("<br />");
           client.print("MaxBoilerTempF = ");
           client.println(maxBoilerTempF);
           client.println("<br />");
-          client.println("Pump Setting =  ");
-          client.println(pumpSetting);
+          client.print("TankReturnTempF = ");
+          client.println(TankReturnTempF);
           client.println("<br />");
-          client.println("assert = 1");
+          
+          if (pumpSetting == 1)
+          {
+            client.println("Boiler has control");
+          }
+          else if (pumpSetting == 2)
+          {
+            client.println("Pump is off");
+          }
+          else if (pumpSetting == 3)
+          {
+            client.println("Pump set to LOW");
+          }
+          else if (pumpSetting == 4)
+          {
+            client.println("Pump set to MEDIUM");
+          }
+          else if (pumpSetting == 5)
+          {
+            client.println("Pump set to HIGH");
+          }
           client.println("<br />");
-          client.println("off = 2");
-          client.println("<br />");
-          client.println("low = 3");
-          client.println("<br />");
-          client.println("medium = 4");
-          client.println("<br />");
-          client.println("high = 5");
-          client.println("<br />");
-//          client.print("OutdoorTempF = ");
-//          client.println(OutdoorTempF);
-//          client.println("<br />");
-//          client.print("BoilerRoomTempF = ");
-//          client.println(BoilerRoomTempF);
-          client.println("<br />");
-
-          client.print("Time Since Start Up (minutes) = ");
-          unsigned long timer = millis() /60000;
-          client.println(timer);
+          
+          client.print("Up Time (mm:ss) = ");
+          unsigned long minutes = millis() /60000;if (minutes << 1){minutes = 0;}
+          byte seconds = (millis() - (minutes * 60000)) /1000; if (seconds >> 60){seconds = 0;}
+          client.print(minutes);
+          client.print(":");
+          client.print(seconds);
           client.println("<br />");
           client.println("</p>");
           client.println("</html>");
