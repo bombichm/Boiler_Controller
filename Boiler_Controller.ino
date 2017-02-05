@@ -10,7 +10,7 @@
 #include <LiquidCrystal.h>
 #include <avr/wdt.h>
 #include "Wire.h"
-#define LCD 0
+#define DEBUG 0
 
 //******************** I2C ********************
 
@@ -62,6 +62,11 @@ float BoilerRoomTempF;
 float HouseTempF;
 float DHWTempF;
 
+int lowSetpoint;
+int medSetpoint;
+int highSetpoint;
+String readString; 
+
 const byte notassert = 1;
 const byte off = 2;
 const byte low = 3;
@@ -102,7 +107,7 @@ void setup()
     
 //###################### Sensors ######################//
   sensors.begin();                                                  // Start up the library
- byte bitRes = 9;                                                   // set the resolution 9-12 bit; 9 bit, 65 ms per chip; 12 bit, 750 ms per chip
+ byte bitRes = 10;                                                   // set the resolution 9-12 bit; 9 bit, 65 ms per chip; 12 bit, 750 ms per chip
   sensors.setResolution(TankTop, bitRes);
   sensors.setResolution(MidTankOne, bitRes);
 //  sensors.setResolution(MidTankTwo, bitRes);
@@ -133,7 +138,10 @@ void setup()
 
 //###################### Baseline Temps ######################//
   
- getBoilerBaseTempsF();//Calculate baseline temperatures
+  getBoilerBaseTempsF();//Calculate baseline temperatures
+  lowSetpoint = 168;
+  medSetpoint = 174;
+  highSetpoint = 180;
  
 }
 
@@ -143,120 +151,167 @@ float maxBoilerTempF;
 void loop()
 {
   wdt_reset();
+  #if DEBUG == 1
+    lcdPrintTemps();
+    serialPrintTemps();
+  #endif
 
+  getBoilerTempsF();
   //MAX Boiler Temp
   if (BoilerTempF > maxBoilerTempF)
   {
     maxBoilerTempF = BoilerTempF;
   }
 
-  Serial.print ("Pump Setting is ");
-  Serial.println (pumpSetting);
- 
-  getBoilerTempsF();
-  
-//  spuriousTest();
+  //###################### Ethernet ######################//
 
-  
-
-#if DEBUG == 1
-  lcdPrintTemps();
-  serialPrintTemps();
-#endif
-//###################### Ethernet ######################//
-
-// listen for incoming clients
+  // listen for incoming clients
   EthernetClient client = server.available();
-  if (client) {
-    Serial.println("new client");
-    // an http request ends with a blank line
-    boolean currentLineIsBlank = true;
-    while (client.connected()) {
-      if (client.available()) {
-        char c = client.read();
-        Serial.write(c);
-        // if you've gotten to the end of the line (received a newline
-        // character) and the line is blank, the http request has ended,
-        // so you can send a reply
-        if (c == '\n' && currentLineIsBlank) {
-          // send a standard http response header
-          client.println("HTTP/1.1 200 OK");
-          client.println("Content-Type: text/html");
-          client.println("Connection: close");  // the connection will be closed after completion of the response
-          client.println("Refresh: 10");  // refresh the page automatically every 10 sec
-          client.println();
-          client.println("<!DOCTYPE HTML>");
-          client.println("<html>");
-          client.println("<p style=""font-size:40px"">");
-          // output the value of each temp sensor
-//          client.print("TankTopTempF = ");
-//          client.println(TankTopTempF);
-//          client.println("<br />");
-//          client.print("MidTankOneTempF = ");
-//          client.println(MidTankOneTempF);
-//          client.println("<br />");
-          client.print("BoilerTempF = ");
-          client.println(BoilerTempF);
-          client.println("<br />");
-          client.print("MaxBoilerTempF = ");
-          client.println(maxBoilerTempF);
-          client.println("<br />");
-          client.print("TankReturnTempF = ");
-          client.println(TankReturnTempF);
-          client.println("<br />");
+  if (client) 
+    {
+//      Serial.println("new client");
+//      // an http request ends with a blank line
+//      boolean currentLineIsBlank = true;
+      while (client.connected()) 
+        {
+        if (client.available()) 
+          {
+          char c = client.read(); 
+          //read char by char HTTP request
+          if (readString.length() < 100) 
+            {
+              //store characters to string 
+              readString += c; 
+              //Serial.print(c);
+            }
+
+        //if HTTP request has ended
+        if (c == '\n') 
+          {
+
+          ///////////////
+          Serial.println(readString); //print to serial monitor for debuging 
+
+          //now output HTML data header
+             if(readString.indexOf('?') >= 0) 
+               { //don't send new page
+                 client.println("HTTP/1.1 204 Zoomkat");
+                 client.println();
+                 client.println();  
+               }
           
-          if (pumpSetting == 1)
-          {
-            client.println("Boiler has control");
-          }
-          else if (pumpSetting == 2)
-          {
-            client.println("Pump is off");
-          }
-          else if (pumpSetting == 3)
-          {
-            client.println("Pump set to LOW");
-          }
-          else if (pumpSetting == 4)
-          {
-            client.println("Pump set to MEDIUM");
-          }
-          else if (pumpSetting == 5)
-          {
-            client.println("Pump set to HIGH");
-          }
-          client.println("<br />");
-          
-          client.print("Up Time (mm:ss) = ");
-          unsigned long minutes = millis() /60000;if (minutes << 1){minutes = 0;}
-          byte seconds = (millis() - (minutes * 60000)) /1000; if (seconds >> 60){seconds = 0;}
-          client.print(minutes);
-          client.print(":");
-          client.print(seconds);
-          client.println("<br />");
-          client.println("</p>");
-          client.println("</html>");
-          break;
-        }
-        if (c == '\n') {
-          // you're starting a new line
-          currentLineIsBlank = true;
-        } else if (c != '\r') {
-          // you've gotten a character on the current line
-          currentLineIsBlank = false;
-        }
-      }
-    }
-    // give the web browser time to receive the data
-    delay(1);
-    // close the connection:
-    client.stop();
-    Serial.println("client disconnected");
-  }
+              else
+                {
+                // send a standard http response header
+                client.println("HTTP/1.1 200 OK");
+                client.println("Content-Type: text/html");
+                client.println("Connection: close");  // the connection will be closed after completion of the response
+                client.println("Refresh: 5");  // refresh the page automatically every 5 sec
+                client.println();
+                client.println("<!DOCTYPE HTML>");
+                client.println("<html>");
+                client.println("<p style=""font-size:40px"">");
+                // output the value of each temp sensor
+                client.print("LOW Setpoint = ");
+                client.println(lowSetpoint);
+                client.println("<a href=\"/?lowup\"\">UP</a>"); 
+                client.println("<a href=\"/?lowdown\"\">DOWN</a>"); 
+                client.println("<br />");
+                client.print("MED Setpoint = ");
+                client.println(medSetpoint);
+                client.println("<a href=\"/?medup\"\">UP</a>"); 
+                client.println("<a href=\"/?meddown\"\">DOWN</a>"); 
+                client.println("<br />");
+                client.print("HIGH Setpoint = ");
+                client.println(highSetpoint);
+                client.println("<a href=\"/?highup\"\">UP</a>"); 
+                client.println("<a href=\"/?highdown\"\">DOWN</a>"); 
+                client.println("<br />");
+                client.print("BoilerTempF = ");
+                client.println(BoilerTempF);
+                client.println("<br />");
+                client.print("MaxBoilerTempF = ");
+                client.println(maxBoilerTempF);
+                client.println("<br />");
+                client.print("TankReturnTempF = ");
+                client.println(TankReturnTempF);
+                client.println("<br />");
+                if (pumpSetting == 1)
+                  {
+                    client.println("Boiler has control");
+                  }
+                else if (pumpSetting == 2)
+                  {
+                    client.println("Pump is off");
+                  }
+                else if (pumpSetting == 3)
+                  {
+                    client.println("Pump set to LOW");
+                  }
+                else if (pumpSetting == 4)
+                  {
+                    client.println("Pump set to MEDIUM");
+                  }
+                else if (pumpSetting == 5)
+                  {
+                    client.println("Pump set to HIGH");
+                  }
+                client.println("<br />");
+                client.print("Up Time (mm:ss) = ");
+                unsigned long minutes = millis() /60000;
+                byte seconds = (millis() - (minutes * 60000)) /1000; if (seconds >> 60){seconds = 0;}
+                client.print(minutes);
+                client.print(":");
+                client.print(seconds);
+                client.println("<br />");
+                client.println("</p>");
+                client.println("</html>");
+                }//end else
+      
+            // give the web browser time to receive the data
+            delay(1);
+            // close the connection:
+            client.stop();
+
+            ///control from web input
+            if(readString.indexOf("lowup") >0)//checks for up
+            {
+              lowSetpoint += 1;
+            }
+            if(readString.indexOf("lowdown") >0)//checks for down
+            {
+              lowSetpoint -= 1;
+            }
+            if(readString.indexOf("medup") >0)//checks for up
+            {
+              medSetpoint += 1;
+            }
+            if(readString.indexOf("meddown") >0)//checks for down
+            {
+              medSetpoint -= 1;
+            }
+            if(readString.indexOf("highup") >0)//checks for up
+            {
+              highSetpoint += 1;
+            }
+            if(readString.indexOf("highdown") >0)//checks for down
+            {
+              highSetpoint -= 1;
+            }
+            //clearing string for next read
+            readString="";
+
+            Serial.println("client disconnected");
+          }//if (c == '\n')
+        }//end if client
+      }//end while connected
+    }//end if client
+    
+  
   
   ////////////////////////////////////////////////////////////////////////////////////////////////////////
 
- 
+
 ///// Conditional tests for setting the boiler circulation pump speed
   
   if (BoilerTempF >= 195.0)                     
@@ -264,22 +319,22 @@ void loop()
       boilerCircSetting(high);         //of other temps when the boiler is over 195 degrees                                                          
   }  
   
-  else if (TankReturnTempF <= 130.0 && BoilerTempF >= 168.0 && BoilerTempF <= 173.99999)   
+  else if (TankReturnTempF <= 130.0 && BoilerTempF >= lowSetpoint && BoilerTempF <= (medSetpoint - 0.001))   
   {                                             //This function runs the boiler circ pump on LOW when the                                                                   
       boilerCircSetting(low);         //boiler is above 168 degrees                                
   }                                           
                                                 
- else if (TankReturnTempF <= 130.0 && BoilerTempF >= 174.0 && BoilerTempF <= 179.999999)   
+ else if (TankReturnTempF <= 130.0 && BoilerTempF >= (medSetpoint + 0.001) && BoilerTempF <= (highSetpoint - 0.001))   
   {                                             //This function runs the boiler circ pump on MEDIUM when the                                                                   
       boilerCircSetting(medium);         //boiler is between 174-180 degrees                                
   }                                                                             
     
- else if (TankReturnTempF <= 130.0 && BoilerTempF >= 179.0)   
+ else if (TankReturnTempF <= 130.0 && BoilerTempF >= highSetpoint)   
   {                                             //This function runs the boiler circ pump on HIGH when the                                                                   
       boilerCircSetting(high);         //boiler is above 180 degrees and the tank return is less than 130                               
   } 
   
-  else if (TankReturnTempF >= 130.0 && BoilerTempF >= 174.0 && ((BoilerTempF - TankTopTempF) >= 2.0))  
+  else if (TankReturnTempF >= 130.0 && BoilerTempF >= medSetpoint && ((BoilerTempF - TankTopTempF) >= 2.0))  
   {                                             //This function runs the boiler circ pump on LOW when the tank                                                                    
       boilerCircSetting(low);         //return is over 130 degrees, and the Boiler Temp is at least 2                              
   }                                             //degrees warmer than the Top of the Tank
@@ -338,6 +393,11 @@ void furnaceCircSetting(byte data)
   Wire.beginTransmission(furnaceCirc);
   Wire.write(data);
   Wire.endTransmission();
+}
+
+void printPumpSetting()
+{
+  
 }
 
 void getBoilerBaseTempsF()
@@ -404,6 +464,8 @@ void serialPrintTemps()
 //  Serial.println(DHWTempF);
   
   Serial.println(" ");
+  Serial.print ("Pump Setting is ");
+  Serial.println (pumpSetting);
 }
 
 void lcdPrintTemps()
