@@ -232,6 +232,7 @@ void loop()
                 client.println("<br />");
                 client.print("MaxBoilerTempF = ");
                 client.println(maxBoilerTempF);
+                client.println("<a href=\"/?resetmax\"\">RESET</a>"); 
                 client.println("<br />");
                 client.print("TankReturnTempF = ");
                 client.println(TankReturnTempF);
@@ -297,6 +298,10 @@ void loop()
             if(readString.indexOf("highdown") >0)//checks for down
             {
               highSetpoint -= 1;
+            }
+            if(readString.indexOf("resetmax") >0)//request to reset the max boiler temp
+            {
+              maxBoilerTempF = BoilerTempF;
             }
             //clearing string for next read
             readString="";
