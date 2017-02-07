@@ -210,6 +210,9 @@ void loop()
                 client.println();
                 client.println("<!DOCTYPE HTML>");
                 client.println("<html>");
+                client.println("<head>");
+                client.println("<title>Boiler Controller</title>");
+                client.println("</head>");
                 client.println("<p style=""font-size:40px"">");
                 // output the value of each temp sensor
                 client.print("LOW Setpoint = ");
@@ -277,27 +280,27 @@ void loop()
             ///control from web input
             if(readString.indexOf("lowup") >0)//checks for up
             {
-              lowSetpoint += 1;
+              lowSetpoint += 2;
             }
             if(readString.indexOf("lowdown") >0)//checks for down
             {
-              lowSetpoint -= 1;
+              lowSetpoint -= 2;
             }
             if(readString.indexOf("medup") >0)//checks for up
             {
-              medSetpoint += 1;
+              medSetpoint += 2;
             }
             if(readString.indexOf("meddown") >0)//checks for down
             {
-              medSetpoint -= 1;
+              medSetpoint -= 2;
             }
             if(readString.indexOf("highup") >0)//checks for up
             {
-              highSetpoint += 1;
+              highSetpoint += 2;
             }
             if(readString.indexOf("highdown") >0)//checks for down
             {
-              highSetpoint -= 1;
+              highSetpoint -= 2;
             }
             if(readString.indexOf("resetmax") >0)//request to reset the max boiler temp
             {
@@ -329,7 +332,7 @@ void loop()
       boilerCircSetting(low);         //boiler is above 168 degrees                                
   }                                           
                                                 
- else if (TankReturnTempF <= 130.0 && BoilerTempF >= (medSetpoint + 0.001) && BoilerTempF <= (highSetpoint - 0.001))   
+ else if (TankReturnTempF <= 130.0 && BoilerTempF >= (medSetpoint) && BoilerTempF <= (highSetpoint - 0.001))   
   {                                             //This function runs the boiler circ pump on MEDIUM when the                                                                   
       boilerCircSetting(medium);         //boiler is between 174-180 degrees                                
   }                                                                             
@@ -398,11 +401,6 @@ void furnaceCircSetting(byte data)
   Wire.beginTransmission(furnaceCirc);
   Wire.write(data);
   Wire.endTransmission();
-}
-
-void printPumpSetting()
-{
-  
 }
 
 void getBoilerBaseTempsF()
