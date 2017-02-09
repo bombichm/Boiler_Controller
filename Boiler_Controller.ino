@@ -2,15 +2,18 @@
 // wired for parasite power.  The sketch includes math functions designed to eliminate the occasional spurious 
 // reading, and to average the last two sensor values.
 
-// Tutorial:
-// http://www.hacktronics.com/Tutorials/arduino-1-wire-tutorial.html
-
 #include <OneWire.h>
 #include <DallasTemperature.h>
 #include <LiquidCrystal.h>
+#include <SD.h>
 #include <avr/wdt.h>
 #include "Wire.h"
 #define DEBUG 0
+#define DATALOG 1
+
+//*************** Data Logging ****************
+
+const int CS = 4;
 
 //******************** I2C ********************
 
@@ -99,51 +102,73 @@ void setup()
   Wire.write(2);
   Wire.endTransmission();
   
+  //******************** Data Logging *********************
 
-//###################### Ethernet ######################//
-// start the Ethernet connection and the server:
-  Ethernet.begin(mac, ip);
-  server.begin();
+  #if DATALOG == 1
+    pinMode (CS, OUTPUT);
     
-//###################### Sensors ######################//
-  sensors.begin();                                                  // Start up the library
- byte bitRes = 10;                                                   // set the resolution 9-12 bit; 9 bit, 65 ms per chip; 12 bit, 750 ms per chip
-  sensors.setResolution(TankTop, bitRes);
-  sensors.setResolution(MidTankOne, bitRes);
-//  sensors.setResolution(MidTankTwo, bitRes);
-  sensors.setResolution(TankReturn, bitRes);
-  sensors.setResolution(Boiler, bitRes);
-//  sensors.setResolution(Outdoor, bitRes);
-//  sensors.setResolution(BoilerRoom, bitRes);
-//  sensors.setResolution(House, bitRes);
-//  sensors.setResolution(DHW, bitRes);
+    Serial.print("Initializing SD card...");
+    
+      // see if the card is present and can be initialized:
+      if (!SD.begin(CS)) {
+        Serial.println("Card failed, or not present");
+        // don't do anything more:
+        return;
+      }
+    Serial.println("Card initialized.");
+    File dataFile = SD.open("datalog.txt", FILE_WRITE);
+    // if the file is available, write to it:
+    if (dataFile) 
+      {
+        dataFile.println("Boiler Temp, Return Temp, Tank Top, Outdoor Temp");
+        dataFile.close();
+      }
+  #endif
   
-  sensors.requestTemperatures();                                    //Get baseline temps
-
-//###################### LCD ######################//
- #if DEBUG == 1
-  Serial.begin(9600);
-  Serial.println("Assert on, pump off");
-  Serial.print("server is at ");
-  Serial.println(Ethernet.localIP());
- 
-  lcd.begin(16, 2);
-  lcd.setCursor(0, 0);
-  lcd.print("BOILER SYSTEM");
-  lcd.setCursor(0, 1);
-  lcd.print("CONTROLLER");
-  delay(1000);
-  lcd.clear(); 
- #endif
-
-//###################### Baseline Temps ######################//
+  //###################### Ethernet ######################//
+  // start the Ethernet connection and the server:
+    Ethernet.begin(mac, ip);
+    server.begin();
+      
+  //###################### Sensors ######################//
+    sensors.begin();                                                  // Start up the library
+    byte bitRes = 10;                                                 // set the resolution 9-12 bit; 9 bit, 65 ms per chip; 12 bit, 750 ms per chip
+    sensors.setResolution(TankTop, bitRes);
+    sensors.setResolution(MidTankOne, bitRes);
+  //  sensors.setResolution(MidTankTwo, bitRes);
+    sensors.setResolution(TankReturn, bitRes);
+    sensors.setResolution(Boiler, bitRes);
+  //  sensors.setResolution(Outdoor, bitRes);
+  //  sensors.setResolution(BoilerRoom, bitRes);
+  //  sensors.setResolution(House, bitRes);
+  //  sensors.setResolution(DHW, bitRes);
+    
+    sensors.requestTemperatures();                                    //Get baseline temps
   
-  getBoilerBaseTempsF();//Calculate baseline temperatures
-  lowSetpoint = 168;
-  medSetpoint = 174;
-  highSetpoint = 180;
+  //###################### LCD ######################//
+   #if DEBUG == 1
+    Serial.begin(9600);
+    Serial.println("Assert on, pump off");
+    Serial.print("server is at ");
+    Serial.println(Ethernet.localIP());
+   
+    lcd.begin(16, 2);
+    lcd.setCursor(0, 0);
+    lcd.print("BOILER SYSTEM");
+    lcd.setCursor(0, 1);
+    lcd.print("CONTROLLER");
+    delay(1000);
+    lcd.clear(); 
+   #endif
+  
+  //###################### Baseline Temps ######################//
+    
+    getBoilerBaseTempsF();//Calculate baseline temperatures
+    lowSetpoint = 168;
+    medSetpoint = 174;
+    highSetpoint = 180;
  
-}
+}//end void setup()
 
 byte pumpSetting;
 float maxBoilerTempF;
@@ -158,7 +183,7 @@ void loop()
 
   getBoilerTempsF();
   //MAX Boiler Temp
-  if (BoilerTempF > maxBoilerTempF)
+  if (BoilerTempF > maxBoilerTempF || (BoilerTempF - maxBoilerTempF) < 2.00)  //This will eliminate a spurious reading from skewing the record
   {
     maxBoilerTempF = BoilerTempF;
   }
@@ -384,6 +409,9 @@ void boilerCircSetting(byte data)
     Wire.write(data);
     Wire.endTransmission();
     timer = 0;
+    #if DATALOG
+    dataLog();
+    #endif
     }
   else 
     {
@@ -589,4 +617,37 @@ else
 
 
 }
+void dataLog()
+{
+#if DATALOG == 1
+//    // make a string for assembling the data to log:
+//    String dataString = "";
+//  
+//    // read three sensors and append to the string:
+//    for (int analogPin = 0; analogPin < 3; analogPin++) 
+//    {
+//      int sensor = analogRead(analogPin);
+//      dataString += String(sensor);
+//      if (analogPin < 2) 
+//      {
+//        dataString += ",";
+//      }
+//    }
 
+  File dataFile = SD.open("datalog.txt", FILE_WRITE);
+    // if the file is available, write to it:
+    if (dataFile) 
+      {
+        dataFile.print(boilerTempF);
+        dataFile.print(",");
+        dataFile.print(TankReturnTempF);
+        dataFile.close();
+        // print to the serial port too:
+        Serial.println(dataString);
+      }
+    // if the file isn't open, pop up an error:
+    else 
+    {
+      Serial.println("error opening datalog.txt");
+    }
+  #endif  
