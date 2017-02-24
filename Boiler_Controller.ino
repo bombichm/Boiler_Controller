@@ -5,15 +5,9 @@
 #include <OneWire.h>
 #include <DallasTemperature.h>
 #include <LiquidCrystal.h>
-#include <SD.h>
 #include <avr/wdt.h>
 #include "Wire.h"
 #define DEBUG 0
-#define DATALOG 1
-
-//*************** Data Logging ****************
-
-const int CS = 4;
 
 //******************** I2C ********************
 
@@ -102,29 +96,6 @@ void setup()
   Wire.write(2);
   Wire.endTransmission();
   
-  //******************** Data Logging *********************
-
-  #if DATALOG == 1
-    pinMode (CS, OUTPUT);
-    
-    Serial.print("Initializing SD card...");
-    
-      // see if the card is present and can be initialized:
-      if (!SD.begin(CS)) {
-        Serial.println("Card failed, or not present");
-        // don't do anything more:
-        return;
-      }
-    Serial.println("Card initialized.");
-    File dataFile = SD.open("datalog.txt", FILE_WRITE);
-    // if the file is available, write to it:
-    if (dataFile) 
-      {
-        dataFile.println("Boiler Temp, Return Temp, Tank Top, Outdoor Temp");
-        dataFile.close();
-      }
-  #endif
-  
   //###################### Ethernet ######################//
   // start the Ethernet connection and the server:
     Ethernet.begin(mac, ip);
@@ -183,7 +154,7 @@ void loop()
 
   getBoilerTempsF();
   //MAX Boiler Temp
-  if (BoilerTempF > maxBoilerTempF || (BoilerTempF - maxBoilerTempF) < 2.00)  //This will eliminate a spurious reading from skewing the record
+  if (BoilerTempF > maxBoilerTempF || ((BoilerTempF - maxBoilerTempF) < 2.00))  //This will eliminate a spurious reading from skewing the record
   {
     maxBoilerTempF = BoilerTempF;
   }
@@ -617,37 +588,4 @@ else
 
 
 }
-void dataLog()
-{
-#if DATALOG == 1
-//    // make a string for assembling the data to log:
-//    String dataString = "";
-//  
-//    // read three sensors and append to the string:
-//    for (int analogPin = 0; analogPin < 3; analogPin++) 
-//    {
-//      int sensor = analogRead(analogPin);
-//      dataString += String(sensor);
-//      if (analogPin < 2) 
-//      {
-//        dataString += ",";
-//      }
-//    }
 
-  File dataFile = SD.open("datalog.txt", FILE_WRITE);
-    // if the file is available, write to it:
-    if (dataFile) 
-      {
-        dataFile.print(boilerTempF);
-        dataFile.print(",");
-        dataFile.print(TankReturnTempF);
-        dataFile.close();
-        // print to the serial port too:
-        Serial.println(dataString);
-      }
-    // if the file isn't open, pop up an error:
-    else 
-    {
-      Serial.println("error opening datalog.txt");
-    }
-  #endif  
